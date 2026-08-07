@@ -1,0 +1,28 @@
+# Dependencias
+node_modules/
+
+# Builds
+dist/
+
+# Base de datos local (contiene datos sensibles de clientes)
+backend/database.sqlite
+backend/database.sqlite-shm
+backend/database.sqlite-wal
+
+# Variables de entorno / secretos
+backend/.env
+.env
+
+# Túnel Cloudflare: binario y credenciales
+cloudflared.exe
+.cloudflared/
+cert.pem
+
+# Archivos de configuración del túnel nombrado (contienen credenciales)
+/tunel-*.yml
+config.yml
+*.tunnel.json
+
+# Logs y temp
+*.log
+logs/
