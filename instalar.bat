@@ -1,6 +1,5 @@
 @echo off
 setlocal enabledelayedexpansion
-set PATH=%PATH%;C:\Program Files\nodejs
 cd /d "%~dp0"
 
 echo ================================================================
@@ -8,34 +7,66 @@ echo   Consolida RD - Instalador
 echo ================================================================
 echo.
 
-rem --- Verificar Node.js ---
+rem ---------------------------------------------------------------
+rem  Buscar Node.js en el PATH
+rem ---------------------------------------------------------------
+set "NODE_BIN="
 where node >nul 2>&1
-if errorlevel 1 (
-    echo [ERROR] Node.js no esta instalado o no esta en el PATH.
-    echo         Descargalo de: https://nodejs.org (version LTS 22.5 o superior)
-    echo         e instala con las opciones por defecto. Luego vuelve a ejecutar.
+if not errorlevel 1 (
+    for /f "delims=" %%p in ('where node') do set "NODE_BIN=%%~dp"
+    goto node_encontrado
+)
+
+rem ---------------------------------------------------------------
+rem  No esta en el PATH: buscar en ubicaciones comunes de Windows
+rem ---------------------------------------------------------------
+set "CANDIDATOS=C:\Program Files\nodejs;C:\Program Files (x86)\nodejs;%LOCALAPPDATA%\Programs\nodejs;C:\nodejs"
+for %%c in ("%CANDIDATOS:;=" "%") do (
+    if exist "%%~c\node.exe" (
+        set "NODE_BIN=%%~c\"
+        goto node_encontrado
+    )
+)
+
+echo [ERROR] No se encontro Node.js.
+echo.
+echo         Descargalo e instalalo desde:  https://nodejs.org
+echo         (version LTS 22.5 o superior, opciones por defecto)
+echo.
+echo         Luego vuelve a ejecutar este archivo.
+echo.
+pause
+exit /b 1
+
+:node_encontrado
+set "PATH=%NODE_BIN%;%PATH%"
+for /f "delims=" %%v in ('node -v') do set NODEV=%%v
+echo [Node] Detectado en: %NODE_BIN%
+echo [Node] Version:      !NODEV!
+
+rem Verificar que npm este junto a node
+if not exist "%NODE_BIN%npm.cmd" (
+    echo [ERROR] No se encontro npm.cmd junto a Node.js.
     pause
     exit /b 1
 )
 
-for /f "delims=" %%v in ('node -v') do set NODEV=%%v
-echo [Node] Detectado: !NODEV!
-
-rem Verificar version minima (22.5 para node:sqlite)
-set "VER="
-for /f "tokens=1 delims=.v" %%a in ('node -p "process.versions.node"') do set MAJOR=%%a
-for /f "tokens=2 delims=." %%b in ('node -p "process.versions.node"') do set MINOR=%%b
+rem ---------------------------------------------------------------
+rem  Verificar version minima (22.5 para node:sqlite)
+rem ---------------------------------------------------------------
+for /f "tokens=1 delims=." %%a in ('node -p "process.versions.node"') do set MAJOR=%%a
 if !MAJOR! LSS 22 (
-    echo [ERROR] Se requiere Node.js 22.5 o superior. Version detectada: !MAJOR!.!MINOR!
+    echo [ERROR] Se requiere Node.js 22.5 o superior. Version detectada: !MAJOR!
     echo         Actualizalo desde: https://nodejs.org
     pause
     exit /b 1
 )
-
-echo [OK] Version compatible: !MAJOR!.!MINOR!
+echo [OK] Version compatible.
 echo.
 
-rem --- Instalar dependencias backend ---
+rem ---------------------------------------------------------------
+rem  Instalar dependencias backend
+rem ---------------------------------------------------------------
 echo [Backend] Instalando dependencias...
 cd /d "%~dp0backend"
 if exist node_modules (
@@ -49,7 +80,9 @@ if exist node_modules (
     )
 )
 
-rem --- Instalar dependencias frontend ---
+rem ---------------------------------------------------------------
+rem  Instalar dependencias frontend
+rem ---------------------------------------------------------------
 echo [Frontend] Instalando dependencias...
 cd /d "%~dp0frontend"
 if exist node_modules (
@@ -63,7 +96,9 @@ if exist node_modules (
     )
 )
 
-rem --- Crear base de datos (migraciones) ---
+rem ---------------------------------------------------------------
+rem  Crear base de datos (migraciones)
+rem ---------------------------------------------------------------
 echo [Base de datos] Creando/actualizando esquema...
 cd /d "%~dp0backend"
 call node src/migrations/run.js
