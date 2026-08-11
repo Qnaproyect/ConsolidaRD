@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const db = require('../config/database');
 const router = express.Router();
 
+const JWT_SECRET = process.env.JWT_SECRET || 'consolida-rd-secret-dev';
+
 router.post('/login', (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -17,7 +19,7 @@ router.post('/login', (req, res) => {
 
   const token = jwt.sign(
     { id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol },
-    process.env.JWT_SECRET,
+    JWT_SECRET,
     { expiresIn: '24h' }
   );
 
@@ -33,7 +35,7 @@ router.get('/me', (req, res) => {
     return res.status(401).json({ error: 'Token requerido' });
   }
   try {
-    const payload = jwt.verify(header.split(' ')[1], process.env.JWT_SECRET);
+    const payload = jwt.verify(header.split(' ')[1], JWT_SECRET);
     const usuario = db.prepare('SELECT id, nombre, email, rol FROM usuarios WHERE id = ?').get(payload.id);
     if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json(usuario);
