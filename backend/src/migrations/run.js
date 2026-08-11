@@ -46,7 +46,7 @@ db.exec(`
     FOREIGN KEY (cliente_id) REFERENCES clientes(id)
   );
 
-  CREATE TABLE IF NOT EXISTS pagos_consolidados_new (
+  CREATE TABLE IF NOT EXISTS pagos_consolidados (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     cliente_id INTEGER NOT NULL,
     monto_total REAL NOT NULL,
@@ -64,10 +64,6 @@ db.exec(`
     actualizado_en TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (cliente_id) REFERENCES clientes(id)
   );
-  INSERT INTO pagos_consolidados_new (id, cliente_id, monto_total, comision_servicio, cargo_gestion, interes_refinanciamiento, total_cobrado, fecha_pago, periodo, estado, fecha_cobro, tipo_pago, imagen_pago, creado_en, actualizado_en)
-    SELECT id, cliente_id, monto_total, comision_servicio, cargo_gestion, interes_refinanciamiento, total_cobrado, fecha_pago, periodo, estado, fecha_cobro, tipo_pago, imagen_pago, creado_en, actualizado_en FROM pagos_consolidados;
-  DROP TABLE IF EXISTS pagos_consolidados;
-  ALTER TABLE pagos_consolidados_new RENAME TO pagos_consolidados;
 
   CREATE TABLE IF NOT EXISTS pago_detalles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -118,6 +114,32 @@ db.exec(`
 
   PRAGMA foreign_keys = ON;
 `);
+
+const migrarPagosViejos = () => {
+  const tablas = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(t => t.name);
+  if (tablas.includes('pagos_consolidados_new')) {
+    db.exec(`
+      PRAGMA foreign_keys = OFF;
+      INSERT INTO pagos_consolidados (id, cliente_id, monto_total, comision_servicio, cargo_gestion, interes_refinanciamiento, total_cobrado, fecha_pago, periodo, estado, fecha_cobro, tipo_pago, imagen_pago, creado_en, actualizado_en)
+        SELECT id, cliente_id, monto_total, comision_servicio, cargo_gestion, interes_refinanciamiento, total_cobrado, fecha_pago, periodo, estado, fecha_cobro, tipo_pago, imagen_pago, creado_en, actualizado_en FROM pagos_consolidados_new;
+      DROP TABLE pagos_consolidados_new;
+      PRAGMA foreign_keys = ON;
+    `);
+    console.log('Datos migrados desde pagos_consolidados_new');
+  } else if (tablas.includes('pagos_consolidados')) {
+    const cols = db.prepare("PRAGMA table_info(pagos_consolidados)").all().map(c => c.name);
+    if (!cols.includes('comision_servicio')) {
+      db.exec(`
+        PRAGMA foreign_keys = OFF;
+        ALTER TABLE pagos_consolidados ADD COLUMN comision_servicio REAL DEFAULT 0;
+        ALTER TABLE pagos_consolidados ADD COLUMN cargo_gestion REAL DEFAULT 0;
+        PRAGMA foreign_keys = ON;
+      `);
+      console.log('Columnas de comision agregadas a pagos_consolidados');
+    }
+  }
+};
+migrarPagosViejos();
 
 const admin = db.prepare('SELECT id FROM usuarios WHERE email = ?').get('admin@consolidard.com');
 if (!admin) {
