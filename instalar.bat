@@ -8,37 +8,32 @@ echo ================================================================
 echo.
 
 rem ---------------------------------------------------------------
-rem  Buscar Node.js en el PATH
+rem  Buscar Node.js
+rem  1) En el PATH
+rem  2) En ubicaciones comunes de Windows
 rem ---------------------------------------------------------------
 set "NODE_BIN="
-where node >nul 2>&1
-if not errorlevel 1 (
-    for /f "delims=" %%p in ('where node') do set "NODE_BIN=%%~dp"
-    goto node_encontrado
-)
 
-rem ---------------------------------------------------------------
-rem  No esta en el PATH: buscar en ubicaciones comunes de Windows
-rem ---------------------------------------------------------------
-set "CANDIDATOS=C:\Program Files\nodejs;C:\Program Files (x86)\nodejs;%LOCALAPPDATA%\Programs\nodejs;C:\nodejs"
-for %%c in ("%CANDIDATOS:;=" "%") do (
-    if exist "%%~c\node.exe" (
-        set "NODE_BIN=%%~c\"
-        goto node_encontrado
+for %%i in (node.exe) do set "NODE_BIN=%%~dp$PATH:i"
+
+if not defined NODE_BIN (
+    for %%c in ("C:\Program Files\nodejs" "C:\Program Files (x86)\nodejs" "%LOCALAPPDATA%\Programs\nodejs" "C:\nodejs") do (
+        if exist "%%~c\node.exe" set "NODE_BIN=%%~c\"
     )
 )
 
-echo [ERROR] No se encontro Node.js.
-echo.
-echo         Descargalo e instalalo desde:  https://nodejs.org
-echo         (version LTS 22.5 o superior, opciones por defecto)
-echo.
-echo         Luego vuelve a ejecutar este archivo.
-echo.
-pause
-exit /b 1
+if not defined NODE_BIN (
+    echo [ERROR] No se encontro Node.js.
+    echo.
+    echo         Descargalo e instalalo desde:  https://nodejs.org
+    echo         version LTS 22.5 o superior, opciones por defecto
+    echo.
+    echo         Luego vuelve a ejecutar este archivo.
+    echo.
+    pause
+    exit /b 1
+)
 
-:node_encontrado
 set "PATH=%NODE_BIN%;%PATH%"
 for /f "delims=" %%v in ('node -v') do set NODEV=%%v
 echo [Node] Detectado en: %NODE_BIN%
